@@ -5,6 +5,32 @@ import os
 import sys
 import glob
 
+
+def cover_id_in_html(c_value,digit_strings):
+    basePath = r'c:\users\shay\alltmp\\'
+    # Prepare possible file suffixes
+    suffixes = [".htm", ".html", ".txt"]
+    # Build glob patterns for each suffix
+    file_patterns = [os.path.join(basePath, f"{c_value}{suffix}") for suffix in suffixes]
+    # Find all matching files
+    matching_files = []
+    for pattern in file_patterns:
+        matching_files.extend(glob.glob(pattern))
+
+    for file_path in matching_files:
+        try:
+            with open(file_path, "r", encoding="windows-1255") as f:
+                file_text = f.read()
+            # Replace each digit string with 'xxxxxxxx'
+            for digit_str in digit_strings:
+                file_text = file_text.replace(digit_str, 'xxxxxxxx')
+            with open(file_path, "w", encoding="windows-1255") as f:
+                f.write(file_text)
+            print(f"Updated file: {file_path}")
+        except Exception as e:
+            print(f"Error processing file {file_path}: {e}")
+
+
 def get_script_dir():
     # Get the directory where the script/exe is located
     if getattr(sys, 'frozen', False):
@@ -107,40 +133,14 @@ def process_psak_data():
         if digit_strings:
             results.append((c_value, tik_value))
             print(f"Found match: c={c_value}, tik={tik_value}, digits={digit_strings}")
-            basePath = r'c:\users\shay\alltmp\\'
-            
 
-            # Prepare possible file suffixes
-            suffixes = [".htm", ".html", ".txt"]
-            # Build glob patterns for each suffix
-            file_patterns = [os.path.join(basePath, f"{c_value}{suffix}") for suffix in suffixes]
-            # Find all matching files
-            matching_files = []
-            for pattern in file_patterns:
-                matching_files.extend(glob.glob(pattern))
+            cover_id_in_html(c_value,digit_strings)
 
-            for file_path in matching_files:
-                try:
-                    with open(file_path, "r", encoding="windows-1255") as f:
-                        file_text = f.read()
-                    # Replace each digit string with 'xxxxxxxx'
-                    for digit_str in digit_strings:
-                        file_text = file_text.replace(digit_str, 'xxxxxxxx')
-                    with open(file_path, "w", encoding="windows-1255") as f:
-                        f.write(file_text)
-                    print(f"Updated file: {file_path}")
-                except Exception as e:
-                    print(f"Error processing file {file_path}: {e}")
-                    
-                    
-                    
-                # Write results to file
-                output_file = os.path.join(get_script_dir(), "filesWithID.txt")
-                with open(output_file, 'a', encoding='utf-8') as f:
-                    for c_value, tik_value in results:
-                        f.write(f"{c_value}\t{tik_value}\n")
-                print(f"Processing complete. Found {len(results)} matches.")
-                print(f"Results written to {output_file}")
+    # Write results to file
+    output_file = os.path.join(get_script_dir(), "filesWithID.txt")
+    with open(output_file, 'a', encoding='utf-8') as f:
+        for c_value, tik_value in results:
+            f.write(f"{c_value}\t{tik_value}\n")
 
     # Update currentC.txt with the last c value
     with open(current_c_file, "w", encoding="utf-8") as f:
