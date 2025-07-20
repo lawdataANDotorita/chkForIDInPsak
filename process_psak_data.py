@@ -5,11 +5,12 @@ import os
 import sys
 import glob
 
+basePath = r'd:\inetpub\wwwroot\upload\psakdin\\'
+# basePath = r'c:\users\shay\alltmp\\'
 
-def cover_id_in_html(c_value,digit_strings):
-    basePath = r'c:\users\shay\alltmp\\'
+def cover_id_in_file(c_value,digit_strings):
     # Prepare possible file suffixes
-    suffixes = [".htm", ".html", ".txt"]
+    suffixes = [".html",".htm",".txt",".docx",".doc",".rtf"]
     # Build glob patterns for each suffix
     file_patterns = [os.path.join(basePath, f"{c_value}{suffix}") for suffix in suffixes]
     # Find all matching files
@@ -18,6 +19,19 @@ def cover_id_in_html(c_value,digit_strings):
         matching_files.extend(glob.glob(pattern))
 
     for file_path in matching_files:
+        
+        # Check if the file is an .rtf file
+        if file_path.lower().endswith('.docx') or file_path.lower().endswith('.doc'):
+            # Write the file name to word_locations.txt in the current directory
+            word_locations_path = os.path.join(get_script_dir(), "word_locations.txt")
+            try:
+                with open(word_locations_path, "a", encoding="utf-8") as loc_file:
+                    loc_file.write(file_path + "\n")
+            except Exception as e:
+                print(f"Error writing to word_locations.txt: {e}")
+            # Skip further processing for non-rtf files
+            continue
+        
         try:
             with open(file_path, "r", encoding="windows-1255") as f:
                 file_text = f.read()
@@ -29,7 +43,6 @@ def cover_id_in_html(c_value,digit_strings):
             print(f"Updated file: {file_path}")
         except Exception as e:
             print(f"Error processing file {file_path}: {e}")
-
 
 def get_script_dir():
     # Get the directory where the script/exe is located
@@ -84,7 +97,7 @@ def find_digit_strings(text):
 
 def process_psak_data():
     """Main function to process the psak data"""
-    url = "https://www.lawdata.co.il/lawdata_face_lift_test/chkForIDInPsak.asp"
+    url = "https://www.lawdata.co.il/chkForIDInPsak.asp"
     
     # Fetch the JSON data
     print("Fetching data from URL...")
@@ -95,11 +108,9 @@ def process_psak_data():
     if os.path.exists(current_c_file):
         with open(current_c_file, "r", encoding="utf-8") as f:
             currentC = f.read().strip()
-
-
     
     json_data = fetch_json_data(url,currentC)
-    
+
     if not json_data:
         print("Failed to fetch or parse JSON data")
         return
@@ -112,6 +123,7 @@ def process_psak_data():
     data_array = json_data['data']
     print(f"Found {len(data_array)} items in data array")
     
+
     # Process each item in the array
     results = []
     for item in data_array:
@@ -134,7 +146,7 @@ def process_psak_data():
             results.append((c_value, tik_value))
             print(f"Found match: c={c_value}, tik={tik_value}, digits={digit_strings}")
 
-            cover_id_in_html(c_value,digit_strings)
+            cover_id_in_file(c_value,digit_strings)
 
     # Write results to file
     output_file = os.path.join(get_script_dir(), "filesWithID.txt")
