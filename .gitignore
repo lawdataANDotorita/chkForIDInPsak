@@ -1,0 +1,42 @@
+# Ignore all HTML files
+*.htm
+*.html
+
+
+
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore virtual environment
+venv/
+env/
+.env/
+
+# Ignore IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore system files
+.DS_Store
+Thumbs.db 
+
+
+build/
+dist/
+extracted_rules/
+extracted_rules2/
+extracted_law_links.txt
+*.spec
+*.exe
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.zip
+
+*.txt
