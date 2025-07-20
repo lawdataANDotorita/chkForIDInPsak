@@ -3,6 +3,7 @@ import json
 import re
 import os
 import sys
+import glob
 
 def get_script_dir():
     # Get the directory where the script/exe is located
@@ -32,13 +33,13 @@ def find_digit_strings(text):
         return []
     
     # First, find all 8-10 digit strings
-    all_digits_pattern = r'\d{8,10}'
+    all_digits_pattern = r'(?<!\d)(\d{8,9}|\d{7,8}-\d)(?!\d)'
     all_matches = re.findall(all_digits_pattern, str(text))
     
     # Then, find digits that are followed by 'תיק חיצוני' (using lookahead)
     # We'll use multiple patterns to handle different special characters
 
-    excluded_pattern = r'(תיק\s*חיצוני[:\s,\.!?-]*)(\d{8,10})'
+    excluded_pattern = r'(תיק\s*חיצוני[:\s,\.!?-]*)(\d{6,})'
     
     # We want excluded_matches to contain only the digits group (group 2 from the regex)
     excluded_matches = [match[1] for match in re.findall(excluded_pattern, str(text))]
@@ -64,7 +65,7 @@ def process_psak_data():
 
 
     current_c_file = os.path.join(get_script_dir(), "currentC.txt")
-    currentC=0
+    currentC=5000000
     if os.path.exists(current_c_file):
         with open(current_c_file, "r", encoding="utf-8") as f:
             currentC = f.read().strip()
@@ -106,14 +107,40 @@ def process_psak_data():
         if digit_strings:
             results.append((c_value, tik_value))
             print(f"Found match: c={c_value}, tik={tik_value}, digits={digit_strings}")
-    
-    # Write results to file
-    output_file = os.path.join(get_script_dir(), "filesWithID.txt")
-    with open(output_file, 'a', encoding='utf-8') as f:
-        for idx, (c_value, tik_value) in enumerate(results, 1):
-            f.write(f"{idx}\t{c_value}\t{tik_value}\n")
-    print(f"Processing complete. Found {len(results)} matches.")
-    print(f"Results written to {output_file}")
+            basePath = r'c:\users\shay\alltmp\\'
+            
+
+            # Prepare possible file suffixes
+            suffixes = [".htm", ".html", ".txt"]
+            # Build glob patterns for each suffix
+            file_patterns = [os.path.join(basePath, f"{c_value}{suffix}") for suffix in suffixes]
+            # Find all matching files
+            matching_files = []
+            for pattern in file_patterns:
+                matching_files.extend(glob.glob(pattern))
+
+            for file_path in matching_files:
+                try:
+                    with open(file_path, "r", encoding="windows-1255") as f:
+                        file_text = f.read()
+                    # Replace each digit string with 'xxxxxxxx'
+                    for digit_str in digit_strings:
+                        file_text = file_text.replace(digit_str, 'xxxxxxxx')
+                    with open(file_path, "w", encoding="windows-1255") as f:
+                        f.write(file_text)
+                    print(f"Updated file: {file_path}")
+                except Exception as e:
+                    print(f"Error processing file {file_path}: {e}")
+                    
+                    
+                    
+                # Write results to file
+                output_file = os.path.join(get_script_dir(), "filesWithID.txt")
+                with open(output_file, 'a', encoding='utf-8') as f:
+                    for c_value, tik_value in results:
+                        f.write(f"{c_value}\t{tik_value}\n")
+                print(f"Processing complete. Found {len(results)} matches.")
+                print(f"Results written to {output_file}")
 
     # Update currentC.txt with the last c value
     with open(current_c_file, "w", encoding="utf-8") as f:

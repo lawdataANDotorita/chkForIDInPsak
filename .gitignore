@@ -38,5 +38,6 @@ extracted_law_links.txt
 *.pyw
 *.pyz
 *.zip
-
+*.toc
 *.txt
+*.pkg
