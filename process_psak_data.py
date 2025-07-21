@@ -4,13 +4,83 @@ import re
 import os
 import sys
 import glob
+import win32com.client
 
 basePath = r'd:\inetpub\wwwroot\upload\psakdin\\'
 # basePath = r'c:\users\shay\alltmp\\'
 
+
+def cover_id_in_word_file(c_value,digit_strings):
+    # Prepare possible file suffixes
+    suffixes = [".docx",".doc",".rtf"]
+    # Build glob patterns for each suffix
+    file_patterns = [os.path.join(basePath, f"{c_value}{suffix}") for suffix in suffixes]
+    # Find all matching files
+    matching_files = []
+    for pattern in file_patterns:
+        matching_files.extend(glob.glob(pattern))
+
+    if not matching_files:
+        return
+
+    # Create Word application once for all files
+    word = win32com.client.Dispatch("Word.Application")
+    word.Visible = False
+    
+    try:
+        for file_path in matching_files:
+            try:
+                # Open the document
+                doc = word.Documents.Open(file_path)
+                
+                # First, let's check what text is actually in the document
+                doc_text = doc.Content.Text
+                print(f"Document contains {len(doc_text)} characters")
+                print(f"Looking for digit strings: {digit_strings}")
+                
+                for digit_str in digit_strings:
+                    # Check if the digit string exists in the document
+                    if digit_str in doc_text:
+
+                        start = 0
+                        doc_range = doc.Content
+                        while True:
+                            found = doc_range.Find.Execute(FindText=digit_str, Replace=0)
+                            if not found:
+                                break
+                            # Select the found text and replace it
+                            doc_range.Text = 'xxxxxxxx'
+                            # Move start to after the replaced text
+                            start = doc_range.End
+                            if start >= doc.Content.End:
+                                break
+                            doc_range = doc.Range(start, doc.Content.End)
+                    else:
+                        print(f"Digit string '{digit_str}' NOT found in document")
+                
+                
+                # Save the document - use Save() instead of SaveAs() to preserve original format
+                doc.Save()
+                doc.Close()
+                print(f"Updated Word file: {file_path}")
+                
+            except Exception as e:
+                print(f"Error processing Word file {file_path}: {e}")
+                try:
+                    doc.Close(SaveChanges=False)
+                except:
+                    pass
+    finally:
+        # Always quit Word application
+        try:
+            word.Quit()
+        except:
+            pass
+
+
 def cover_id_in_file(c_value,digit_strings):
     # Prepare possible file suffixes
-    suffixes = [".html",".htm",".txt",".docx",".doc",".rtf"]
+    suffixes = [".html",".htm",".txt"]
     # Build glob patterns for each suffix
     file_patterns = [os.path.join(basePath, f"{c_value}{suffix}") for suffix in suffixes]
     # Find all matching files
@@ -19,19 +89,6 @@ def cover_id_in_file(c_value,digit_strings):
         matching_files.extend(glob.glob(pattern))
 
     for file_path in matching_files:
-        
-        # Check if the file is an .rtf file
-        if file_path.lower().endswith('.docx') or file_path.lower().endswith('.doc'):
-            # Write the file name to word_locations.txt in the current directory
-            word_locations_path = os.path.join(get_script_dir(), "word_locations.txt")
-            try:
-                with open(word_locations_path, "a", encoding="utf-8") as loc_file:
-                    loc_file.write(file_path + "\n")
-            except Exception as e:
-                print(f"Error writing to word_locations.txt: {e}")
-            # Skip further processing for non-rtf files
-            continue
-        
         try:
             with open(file_path, "r", encoding="windows-1255") as f:
                 file_text = f.read()
@@ -147,6 +204,7 @@ def process_psak_data():
             print(f"Found match: c={c_value}, tik={tik_value}, digits={digit_strings}")
 
             cover_id_in_file(c_value,digit_strings)
+            cover_id_in_word_file(c_value,digit_strings)
 
     # Write results to file
     output_file = os.path.join(get_script_dir(), "filesWithID.txt")
