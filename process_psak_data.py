@@ -125,7 +125,7 @@ def find_digit_strings(text):
         return []
     
     # First, find all 8-10 digit strings
-    all_digits_pattern = r'(?<!\d)(\d{7,10}|\d{7,9}-\d)(?!\d)'
+    all_digits_pattern = r'(?<!\d)(\d{7,9}\s*-\s*\d|\d{7,10})(?!\d)'
     all_matches = re.findall(all_digits_pattern, str(text))
     
     # Then, find digits that are followed by 'תיק חיצוני' (using lookahead)
@@ -173,7 +173,7 @@ def cleanup_mutex():
 
 def process_psak_data():
     """Main function to process the psak data"""
-    
+
     # Check for single instance
     if not check_single_instance():
         exit()
