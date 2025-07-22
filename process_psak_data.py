@@ -36,9 +36,6 @@ def cover_id_in_word_file(c_value,digit_strings):
                 
                 # First, let's check what text is actually in the document
                 doc_text = doc.Content.Text
-                print(f"Document contains {len(doc_text)} characters")
-                print(f"Looking for digit strings: {digit_strings}")
-                
                 for digit_str in digit_strings:
                     # Check if the digit string exists in the document
                     if digit_str in doc_text:
@@ -63,7 +60,6 @@ def cover_id_in_word_file(c_value,digit_strings):
                 # Save the document - use Save() instead of SaveAs() to preserve original format
                 doc.Save()
                 doc.Close()
-                print(f"Updated Word file: {file_path}")
                 
             except Exception as e:
                 print(f"Error processing Word file {file_path}: {e}")
@@ -98,7 +94,6 @@ def cover_id_in_file(c_value,digit_strings):
                 file_text = file_text.replace(digit_str, 'xxxxxxxx')
             with open(file_path, "w", encoding="windows-1255") as f:
                 f.write(file_text)
-            print(f"Updated file: {file_path}")
         except Exception as e:
             print(f"Error processing file {file_path}: {e}")
 
@@ -134,23 +129,14 @@ def find_digit_strings(text):
     all_matches = re.findall(all_digits_pattern, str(text))
     
     # Then, find digits that are followed by 'תיק חיצוני' (using lookahead)
-    # We'll use multiple patterns to handle different special characters
-
     excluded_pattern = r'(תיק\s*חיצוני[:\s,\.!?-]*)(\d{6,})'
     excluded_matches = [match[1] for match in re.findall(excluded_pattern, str(text))]
 
+    # Exclude phone numbers, both mobile and landline
     excluded_phone_pattern = r'(0[0-9]{1,2}\s*-\s*)(\d{7,8})'
     excluded_phone_matches = [match[1] for match in re.findall(excluded_phone_pattern, str(text))]
 
     excluded_matches += excluded_phone_matches
-
-    if len (all_matches) > 0:
-        print(f"Found {len(all_matches)} digit strings")
-        print(f"All matches: {all_matches}")
-    if len (excluded_matches) > 0:
-        print(f"Found {len(excluded_matches)} excluded matches")
-        print(f"Excluded matches: {excluded_matches}")
-
 
     # Return only matches that are not in the excluded set
     return [match for match in all_matches if match not in excluded_matches]
@@ -160,7 +146,6 @@ def check_single_instance():
     mutex_file = os.path.join(get_script_dir(), "mutex.txt")
     
     if os.path.exists(mutex_file):
-        input("Another instance is already running (mutex.txt exists). Exiting.")
         return False
     else:
         # Create the mutex file
@@ -216,8 +201,6 @@ def process_psak_data():
         return
     
     data_array = json_data['data']
-    print(f"Found {len(data_array)} items in data array")
-    
 
     # Process each item in the array
     results = []
