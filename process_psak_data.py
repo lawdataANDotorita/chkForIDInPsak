@@ -5,6 +5,7 @@ import os
 import sys
 import glob
 import win32com.client
+import atexit
 
 basePath = r'd:\inetpub\wwwroot\upload\psakdin\\'
 # basePath = r'c:\users\shay\alltmp\\'
@@ -154,8 +155,44 @@ def find_digit_strings(text):
     # Return only matches that are not in the excluded set
     return [match for match in all_matches if match not in excluded_matches]
 
+def check_single_instance():
+    """Check if only one instance is running using mutex.txt file"""
+    mutex_file = os.path.join(get_script_dir(), "mutex.txt")
+    
+    if os.path.exists(mutex_file):
+        input("Another instance is already running (mutex.txt exists). Exiting.")
+        return False
+    else:
+        # Create the mutex file
+        try:
+            with open(mutex_file, 'w') as f:
+                f.write(str(os.getpid()))
+            print(f"Mutex file created. PID: {os.getpid()}")
+            return True
+        except Exception as e:
+            print(f"Error creating mutex file: {e}")
+            return False
+
+def cleanup_mutex():
+    """Delete the mutex file when the program exits"""
+    mutex_file = os.path.join(get_script_dir(), "mutex.txt")
+    try:
+        if os.path.exists(mutex_file):
+            os.remove(mutex_file)
+            print("Mutex file cleaned up")
+    except Exception as e:
+        print(f"Error cleaning up mutex file: {e}")
+
 def process_psak_data():
     """Main function to process the psak data"""
+    
+    # Check for single instance
+    if not check_single_instance():
+        exit()
+    
+    # Register cleanup function to run on exit
+    atexit.register(cleanup_mutex)
+
     url = "https://www.lawdata.co.il/chkForIDInPsak.asp"
     
     # Fetch the JSON data
