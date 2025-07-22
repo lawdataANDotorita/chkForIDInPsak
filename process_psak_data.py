@@ -133,10 +133,13 @@ def find_digit_strings(text):
     excluded_matches = [match[1] for match in re.findall(excluded_pattern, str(text))]
 
     # Exclude phone numbers, both mobile and landline
-    excluded_phone_pattern = r'(0[0-9]{1,2}\s*-\s*)(\d{7,8})'
-    excluded_phone_matches = [match[1] for match in re.findall(excluded_phone_pattern, str(text))]
+    excluded_entities_pattern1 = r'(\d{2,}\s*-\s*)(\d{7,10})'
+    excluded_entities_matches1 = [match[1] for match in re.findall(excluded_entities_pattern1, str(text))]
 
-    excluded_matches += excluded_phone_matches
+    excluded_entities_pattern2 = r'(\d{7,10})(\s*-\s*[\d]{2,})'
+    excluded_entities_matches2 = [match[0] for match in re.findall(excluded_entities_pattern2, str(text))]
+
+    excluded_matches += excluded_entities_matches1 + excluded_entities_matches2
 
     # Return only matches that are not in the excluded set
     return [match for match in all_matches if match not in excluded_matches]
