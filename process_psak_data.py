@@ -129,17 +129,19 @@ def find_digit_strings(text):
         return []
     
     # First, find all 8-10 digit strings
-    all_digits_pattern = r'(?<!\d)(\d{8,9}|\d{7,8}-\d)(?!\d)'
+    all_digits_pattern = r'(?<!\d)(\d{7,9}|\d{7,8}-\d)(?!\d)'
     all_matches = re.findall(all_digits_pattern, str(text))
     
     # Then, find digits that are followed by 'תיק חיצוני' (using lookahead)
     # We'll use multiple patterns to handle different special characters
 
     excluded_pattern = r'(תיק\s*חיצוני[:\s,\.!?-]*)(\d{6,})'
-    
-    # We want excluded_matches to contain only the digits group (group 2 from the regex)
     excluded_matches = [match[1] for match in re.findall(excluded_pattern, str(text))]
 
+    excluded_phone_pattern = r'(0[0-9]{1,2}\s*-\s*)(\d{7,8})'
+    excluded_phone_matches = [match[1] for match in re.findall(excluded_phone_pattern, str(text))]
+
+    excluded_matches += excluded_phone_matches
 
     if len (all_matches) > 0:
         print(f"Found {len(all_matches)} digit strings")
@@ -158,7 +160,6 @@ def process_psak_data():
     
     # Fetch the JSON data
     print("Fetching data from URL...")
-
 
     current_c_file = os.path.join(get_script_dir(), "currentC.txt")
     currentC=5000000
