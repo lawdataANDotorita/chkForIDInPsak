@@ -125,7 +125,7 @@ def find_digit_strings(text):
         return []
     
     # First, find all 8-10 digit strings
-    all_digits_pattern = r'(?<!\d)(\d{7,9}|\d{7,8}-\d)(?!\d)'
+    all_digits_pattern = r'(?<!\d)(\d{7,10}|\d{7,9}-\d)(?!\d)'
     all_matches = re.findall(all_digits_pattern, str(text))
     
     # Then, find digits that are followed by 'תיק חיצוני' (using lookahead)
@@ -223,15 +223,14 @@ def process_psak_data():
         if digit_strings:
             results.append((c_value, tik_value))
             print(f"Found match: c={c_value}, tik={tik_value}, digits={digit_strings}")
-
             cover_id_in_file(c_value,digit_strings)
             cover_id_in_word_file(c_value,digit_strings)
 
     # Write results to file
     output_file = os.path.join(get_script_dir(), "filesWithID.txt")
     with open(output_file, 'a', encoding='utf-8') as f:
-        for c_value, tik_value in results:
-            f.write(f"{c_value}\t{tik_value}\n")
+        for c_value_in_results, tik_value_in_results in results:
+            f.write(f"{c_value_in_results}\t{tik_value_in_results}\n")
 
     # Update currentC.txt with the last c value
     with open(current_c_file, "w", encoding="utf-8") as f:
