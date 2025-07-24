@@ -6,6 +6,7 @@ import sys
 import glob
 import win32com.client
 import atexit
+import unicodedata
 
 basePath = r'd:\inetpub\wwwroot\upload\psakdin\\'
 # basePath = r'c:\users\shay\alltmp\\'
@@ -106,17 +107,55 @@ def get_script_dir():
         # If the application is run from a Python interpreter
         return os.path.dirname(os.path.abspath(__file__))
 
+def clean_json(input_text):
+    """
+    Clean response text to remove problematic characters that can cause JSON parsing to fail.
+    This function removes:
+    - Unicode control characters (except common ones like \n, \r, \t)
+    - Zero-width characters
+    - Other problematic Unicode characters
+    - BOM (Byte Order Mark) characters
+    - Non-breaking spaces
+    """
+    if not input_text:
+        return input_text
+    
+    # Remove BOM characters
+    cleaned_text = input_text.replace('\ufeff', '').replace('\ufffe', '')
+    
+    # Remove zero-width characters
+    cleaned_text = re.sub(r'[\u200B-\u200D\uFEFF]', '', cleaned_text)
+    
+    # Remove problematic Unicode control characters (except \n, \r, \t)
+    # This regex removes control characters but preserves \n, \r, \t
+    cleaned_text = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\x80-\x9F]', '', cleaned_text)
+    
+    # Remove non-breaking spaces
+    cleaned_text = re.sub(r'\u00A0', ' ', cleaned_text)
+    
+    # Remove null bytes
+    cleaned_text = cleaned_text.replace('\x00', '')
+    
+    return cleaned_text
+
 def fetch_json_data(url,currentC):
     """Fetch JSON data from the specified URL"""
     try:
         response = requests.get(url,params={"c":currentC})
         response.raise_for_status()  # Raise an exception for bad status codes
-        return response.json()
+        
+        # Get the response text and clean it before parsing as JSON
+        response_text = response.text
+        cleaned_text = clean_json(response_text)
+        # Try to parse the cleaned text as JSON
+        return json.loads(cleaned_text)
     except requests.RequestException as e:
         print(f"Error fetching data from URL: {e}")
+        input("Press any key to continue...")
         return None
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON: {e}")
+        input("Press any key to continue...")
         return None
 
 def find_digit_strings(text):
@@ -194,6 +233,9 @@ def process_psak_data():
     
     json_data = fetch_json_data(url,currentC)
 
+    
+    
+    
     if not json_data:
         print("Failed to fetch or parse JSON data")
         return
