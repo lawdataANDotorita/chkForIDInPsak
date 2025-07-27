@@ -9,7 +9,7 @@ import atexit
 import unicodedata
 
 basePath = r'd:\inetpub\wwwroot\upload\psakdin\\'
-# basePath = r'c:\users\shay\alltmp\\'
+#basePath = r'c:\users\shay\alltmp\tmppsak\\'
 
 
 def cover_id_in_word_file(c_value,digit_strings):
@@ -164,7 +164,7 @@ def find_digit_strings(text):
         return []
     
     # First, find all 8-10 digit strings
-    all_digits_pattern = r'(?<!\d)(\d{7,9}\s*-\s*\d|\d{7,10})(?!\d)'
+    all_digits_pattern = r'(?<![\d_])(\d{7,9}\s*-\s*\d|\d{7,10})(?![\d_])'
     all_matches = re.findall(all_digits_pattern, str(text))
     
     # Then, find digits that are followed by 'תיק חיצוני' (using lookahead)
