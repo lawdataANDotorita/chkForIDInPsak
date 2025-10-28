@@ -10,6 +10,7 @@ import unicodedata
 
 basePath = r'd:\inetpub\wwwroot\upload\psakdin\\'
 #basePath = r'c:\users\shay\alltmp\tmppsak\\'
+newPath = r'd:\inetpub\wwwroot\upload\psakdin_without_id\\'
 
 
 def cover_id_in_word_file(c_value,digit_strings):
@@ -59,7 +60,7 @@ def cover_id_in_word_file(c_value,digit_strings):
                 
                 
                 # Save the document - use Save() instead of SaveAs() to preserve original format
-                doc.Save()
+                doc.SaveAs(os.path.join(newPath, os.path.basename(file_path)))
                 doc.Close()
                 
             except Exception as e:
@@ -93,7 +94,8 @@ def cover_id_in_file(c_value,digit_strings):
             # Replace each digit string with 'xxxxxxxx'
             for digit_str in digit_strings:
                 file_text = file_text.replace(digit_str, 'xxxxxxxx')
-            with open(file_path, "w", encoding="windows-1255") as f:
+            new_file_path = os.path.join(newPath, os.path.basename(file_path))
+            with open(new_file_path, "w", encoding="windows-1255") as f:
                 f.write(file_text)
         except Exception as e:
             print(f"Error processing file {file_path}: {e}")
