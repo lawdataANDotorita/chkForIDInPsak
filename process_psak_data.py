@@ -217,6 +217,8 @@ def process_psak_data():
 
     # Check for single instance
     if not check_single_instance():
+        print("Another instance is already running!")
+        input("Press Enter to exit...")
         exit()
     
     # Register cleanup function to run on exit
@@ -240,11 +242,13 @@ def process_psak_data():
     
     if not json_data:
         print("Failed to fetch or parse JSON data")
+        input("Press Enter to exit...")
         return
     
     # Check if 'data' member exists
     if 'data' not in json_data:
         print("No 'data' member found in JSON")
+        input("Press Enter to exit...")
         return
     
     data_array = json_data['data']
