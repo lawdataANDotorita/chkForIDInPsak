@@ -7,6 +7,7 @@ import glob
 import win32com.client
 import atexit
 import unicodedata
+from datetime import datetime
 
 basePath = r'd:\inetpub\wwwroot\upload\psakdin\\'
 #basePath = r'c:\users\shay\alltmp\tmppsak\\'
@@ -64,7 +65,9 @@ def cover_id_in_word_file(c_value,digit_strings):
                 doc.Close()
                 
             except Exception as e:
-                print(f"Error processing Word file {file_path}: {e}")
+                error_msg = f"Error processing Word file {file_path}"
+                print(f"{error_msg}: {e}")
+                log_error(error_msg, e)
                 try:
                     doc.Close(SaveChanges=False)
                 except:
@@ -98,7 +101,9 @@ def cover_id_in_file(c_value,digit_strings):
             with open(new_file_path, "w", encoding="windows-1255") as f:
                 f.write(file_text)
         except Exception as e:
-            print(f"Error processing file {file_path}: {e}")
+            error_msg = f"Error processing file {file_path}"
+            print(f"{error_msg}: {e}")
+            log_error(error_msg, e)
 
 def get_script_dir():
     # Get the directory where the script/exe is located
@@ -108,6 +113,28 @@ def get_script_dir():
     else:
         # If the application is run from a Python interpreter
         return os.path.dirname(os.path.abspath(__file__))
+
+def log_error(error_message, exception=None):
+    """
+    Write error messages to errorsLog.txt file with timestamp
+    
+    Args:
+        error_message: A description of the error
+        exception: Optional exception object to log details from
+    """
+    try:
+        log_file = os.path.join(get_script_dir(), "errorsLog.txt")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(f"[{timestamp}] {error_message}\n")
+            if exception:
+                f.write(f"    Exception: {type(exception).__name__}: {str(exception)}\n")
+            f.write("\n")
+    except Exception as e:
+        # If logging fails, at least print to console
+        print(f"Failed to write to error log: {e}")
+        input("Press Enter to continue...")
 
 def clean_json(input_text):
     """
@@ -152,12 +179,12 @@ def fetch_json_data(url,currentC):
         # Try to parse the cleaned text as JSON
         return json.loads(cleaned_text)
     except requests.RequestException as e:
-        print(f"Error fetching data from URL: {e}")
-        input("Press any key to continue...")
+        error_msg = "Error fetching data from URL"
+        log_error(error_msg, e)
         return None
     except json.JSONDecodeError as e:
-        print(f"Error parsing JSON: {e}")
-        input("Press any key to continue...")
+        error_msg = "Error parsing JSON"
+        log_error(error_msg, e)
         return None
 
 def find_digit_strings(text):
@@ -199,7 +226,9 @@ def check_single_instance():
             print(f"Mutex file created. PID: {os.getpid()}")
             return True
         except Exception as e:
-            print(f"Error creating mutex file: {e}")
+            error_msg = "Error creating mutex file"
+            print(f"{error_msg}: {e}")
+            log_error(error_msg, e)
             return False
 
 def cleanup_mutex():
@@ -210,7 +239,9 @@ def cleanup_mutex():
             os.remove(mutex_file)
             print("Mutex file cleaned up")
     except Exception as e:
-        print(f"Error cleaning up mutex file: {e}")
+        error_msg = "Error cleaning up mutex file"
+        print(f"{error_msg}: {e}")
+        log_error(error_msg, e)
 
 def process_psak_data():
     """Main function to process the psak data"""
@@ -254,38 +285,43 @@ def process_psak_data():
     data_array = json_data['data']
 
     # Process each item in the array
-    results = []
-    for item in data_array:
-        # Check if required fields exist
-        if 'c' not in item or 'tik' not in item or 'text' not in item:
-            continue
-        
-        c_value = item['c']
-        tik_value = item['tik']
-        text_value = item['text']
-        
-        text_value = text_value.replace('\r\n', ' ')
+    try:
+        results = []
+        for item in data_array:
+            # Check if required fields exist
+            if 'c' not in item or 'tik' not in item or 'text' not in item:
+                continue
+            
+            c_value = item['c']
+            tik_value = item['tik']
+            text_value = item['text']
+            
+            text_value = text_value.replace('\r\n', ' ')
 
-        
-        # Find digit strings in the text
-        digit_strings = find_digit_strings(text_value)
-        
-        # If we found any 8-10 digit strings, add to results
-        if digit_strings:
-            results.append((c_value, tik_value))
-            print(f"Found match: c={c_value}, tik={tik_value}, digits={digit_strings}")
-            cover_id_in_file(c_value,digit_strings)
-            cover_id_in_word_file(c_value,digit_strings)
+            
+            # Find digit strings in the text
+            digit_strings = find_digit_strings(text_value)
+            
+            # If we found any 8-10 digit strings, add to results
+            if digit_strings:
+                results.append((c_value, tik_value))
+                print(f"Found match: c={c_value}, tik={tik_value}, digits={digit_strings}")
+                cover_id_in_file(c_value,digit_strings)
+                cover_id_in_word_file(c_value,digit_strings)
 
-    # Write results to file
-    output_file = os.path.join(get_script_dir(), "filesWithID.txt")
-    with open(output_file, 'a', encoding='utf-8') as f:
-        for c_value_in_results, tik_value_in_results in results:
-            f.write(f"{c_value_in_results}\t{tik_value_in_results}\n")
-
-    # Update currentC.txt with the last c value
-    with open(current_c_file, "w", encoding="utf-8") as f:
-        f.write(str(c_value))
+        # Write results to file
+        """
+        output_file = os.path.join(get_script_dir(), "filesWithID.txt")
+        with open(output_file, 'a', encoding='utf-8') as f:
+            for c_value_in_results, tik_value_in_results in results:
+                f.write(f"{c_value_in_results}\t{tik_value_in_results}\n")
+        """
+        # Update currentC.txt with the last c value
+        with open(current_c_file, "w", encoding="utf-8") as f:
+            f.write(str(c_value))
+    except Exception as e:
+        error_msg = "Error processing data array"
+        log_error(error_msg, e)
 
 if __name__ == "__main__":
     process_psak_data() 
