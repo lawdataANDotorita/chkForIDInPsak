@@ -249,7 +249,6 @@ def process_psak_data():
     # Check for single instance
     if not check_single_instance():
         print("Another instance is already running!")
-        input("Press Enter to exit...")
         exit()
     
     # Register cleanup function to run on exit
