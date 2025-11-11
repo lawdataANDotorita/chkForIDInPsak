@@ -9,8 +9,10 @@ import atexit
 import unicodedata
 from datetime import datetime
 
-basePath = r'd:\inetpub\wwwroot\upload\psakdin\\'
 #basePath = r'c:\users\shay\alltmp\tmppsak\\'
+basePath = r'd:\inetpub\wwwroot\upload\psakdin\\'
+
+#newPath = r'c:\users\shay\alltmp\tmppsak2\\'
 newPath = r'd:\inetpub\wwwroot\upload\psakdin_without_id\\'
 
 
@@ -92,8 +94,14 @@ def cover_id_in_file(c_value,digit_strings):
 
     for file_path in matching_files:
         try:
-            with open(file_path, "r", encoding="windows-1255") as f:
-                file_text = f.read()
+            try:
+                with open(file_path, "r", encoding="windows-1255") as f:
+                    file_text = f.read()
+            except UnicodeDecodeError:
+                with open(file_path, "rb") as f:
+                    file_bytes = f.read()
+                file_text = file_bytes.decode("windows-1255", errors="ignore")
+                log_error(f"UnicodeDecodeError while reading {file_path}; some characters were skipped.")
             # Replace each digit string with 'xxxxxxxx'
             for digit_str in digit_strings:
                 file_text = file_text.replace(digit_str, 'xxxxxxxx')
@@ -264,12 +272,7 @@ def process_psak_data():
     if os.path.exists(current_c_file):
         with open(current_c_file, "r", encoding="utf-8") as f:
             currentC = f.read().strip()
-    
     json_data = fetch_json_data(url,currentC)
-
-    
-    
-    
     if not json_data:
         print("Failed to fetch or parse JSON data")
         input("Press Enter to exit...")
