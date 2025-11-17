@@ -15,7 +15,6 @@ basePath = r'd:\inetpub\wwwroot\upload\psakdin\\'
 #newPath = r'c:\users\shay\alltmp\tmppsak2\\'
 newPath = r'd:\inetpub\wwwroot\upload\psakdin_without_id\\'
 
-
 def cover_id_in_word_file(c_value,digit_strings):
     # Prepare possible file suffixes
     suffixes = [".docx",".doc",".rtf"]
@@ -204,7 +203,7 @@ def find_digit_strings(text):
     all_digits_pattern = r'(?<![\d_])(\d{7,9}\s*-\s*\d|\d{7,10})(?![\d_])'
     all_matches = re.findall(all_digits_pattern, str(text))
     
-    # Then, find digits that are followed by 'תיק חיצוני' (using lookahead)
+    # Then, find digits that are followed by 'תיק חיצוני' 
     excluded_pattern = r'(תיק\s*חיצוני[:\s,\.!?-]*)(\d{6,})'
     excluded_matches = [match[1] for match in re.findall(excluded_pattern, str(text))]
 
@@ -214,6 +213,10 @@ def find_digit_strings(text):
 
     excluded_entities_pattern2 = r'(\d{7,10})(\s*-\s*[\d]{2,})'
     excluded_entities_matches2 = [match[0] for match in re.findall(excluded_entities_pattern2, str(text))]
+
+    # Then, find digits that are followed by 'מ.ר' 
+    excluded_pattern3 = r'(מ.ר[:\s,\.!?-]*)(\d{6,})'
+    excluded_matches3 = [match[1] for match in re.findall(excluded_pattern3, str(text))]
 
 
     # Exclude all 6-12 digit strings if they are inside <!-- and -->
@@ -225,7 +228,9 @@ def find_digit_strings(text):
         digits_in_comment = re.findall(r'\d{6,}', block)
         excluded_html_comments_digits.extend(digits_in_comment)
 
-    excluded_matches += excluded_entities_matches1 + excluded_entities_matches2 + excluded_html_comments_digits
+
+
+    excluded_matches += excluded_entities_matches1 + excluded_entities_matches2 + excluded_html_comments_digits + excluded_matches3
 
     # Return only matches that are not in the excluded set
     return [match for match in all_matches if match not in excluded_matches]
