@@ -215,7 +215,17 @@ def find_digit_strings(text):
     excluded_entities_pattern2 = r'(\d{7,10})(\s*-\s*[\d]{2,})'
     excluded_entities_matches2 = [match[0] for match in re.findall(excluded_entities_pattern2, str(text))]
 
-    excluded_matches += excluded_entities_matches1 + excluded_entities_matches2
+
+    # Exclude all 6-12 digit strings if they are inside <!-- and -->
+    excluded_html_comments_digits = []
+    # Find all <!-- ... --> blocks
+    comment_blocks = re.findall(r'<!--(.*?)-->', str(text), flags=re.DOTALL)
+    for block in comment_blocks:
+        # Find all 6-12 digit strings inside comment blocks
+        digits_in_comment = re.findall(r'\d{6,}', block)
+        excluded_html_comments_digits.extend(digits_in_comment)
+
+    excluded_matches += excluded_entities_matches1 + excluded_entities_matches2 + excluded_html_comments_digits
 
     # Return only matches that are not in the excluded set
     return [match for match in all_matches if match not in excluded_matches]
@@ -252,6 +262,7 @@ def cleanup_mutex():
         log_error(error_msg, e)
 
 def process_psak_data():
+
     """Main function to process the psak data"""
 
     # Check for single instance
