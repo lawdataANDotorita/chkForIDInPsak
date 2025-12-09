@@ -5,8 +5,11 @@ import os
 import sys
 import glob
 import win32com.client
+import pythoncom
 import atexit
 import unicodedata
+import threading
+import time
 from datetime import datetime
 
 #basePath = r'c:\users\shay\alltmp\tmppsak\\'
@@ -15,35 +18,46 @@ basePath = r'd:\inetpub\wwwroot\upload\psakdin\\'
 #newPath = r'c:\users\shay\alltmp\tmppsak2\\'
 newPath = r'd:\inetpub\wwwroot\upload\psakdin_without_id\\'
 
-def cover_id_in_word_file(c_value,digit_strings):
-    # Prepare possible file suffixes
-    suffixes = [".docx",".doc",".rtf"]
-    # Build glob patterns for each suffix
-    file_patterns = [os.path.join(basePath, f"{c_value}{suffix}") for suffix in suffixes]
-    # Find all matching files
-    matching_files = []
-    for pattern in file_patterns:
-        matching_files.extend(glob.glob(pattern))
-
-    if not matching_files:
-        return
-
-    # Create Word application once for all files
-    word = win32com.client.Dispatch("Word.Application")
-    word.Visible = False
+def process_word_document_with_timeout(file_path, digit_strings, new_path, timeout=30):
+    """
+    Process a Word document (open, replace digits, save) with timeout handling.
+    Returns True if successful, False if it times out or fails.
+    All processing happens in a separate thread to avoid hanging on dialogs.
+    """
+    success = [False]
+    exception_occurred = [False]
+    exception_obj = [None]
     
-    try:
-        for file_path in matching_files:
+    def process_doc():
+        word_app = None
+        doc = None
+        try:
+            # Initialize COM for this thread
+            pythoncom.CoInitialize()
             try:
-                # Open the document
-                doc = word.Documents.Open(file_path)
+                # Create Word application in this thread
+                word_app = win32com.client.Dispatch("Word.Application")
+                word_app.Visible = False
+                # Suppress all dialogs and alerts
+                word_app.DisplayAlerts = 0  # wdAlertsNone
+                word_app.ScreenUpdating = False
+                # Open document with parameters to suppress dialogs
+                # ReadOnly=False allows editing, ConfirmConversions=False suppresses conversion dialogs
+                doc = word_app.Documents.Open(
+                    FileName=file_path,
+                    ConfirmConversions=False,
+                    ReadOnly=False,
+                    AddToRecentFiles=False,
+                    Visible=False
+                )
                 
-                # First, let's check what text is actually in the document
+                # Get document text
                 doc_text = doc.Content.Text
+                
+                # Process each digit string
                 for digit_str in digit_strings:
                     # Check if the digit string exists in the document
                     if digit_str in doc_text:
-
                         start = 0
                         doc_range = doc.Content
                         while True:
@@ -60,25 +74,91 @@ def cover_id_in_word_file(c_value,digit_strings):
                     else:
                         print(f"Digit string '{digit_str}' NOT found in document")
                 
-                
-                # Save the document - use Save() instead of SaveAs() to preserve original format
-                doc.SaveAs(os.path.join(newPath, os.path.basename(file_path)))
+                # Save the document
+                doc.SaveAs(os.path.join(new_path, os.path.basename(file_path)))
                 doc.Close()
-                
-            except Exception as e:
-                error_msg = f"Error processing Word file {file_path}"
-                print(f"{error_msg}: {e}")
-                log_error(error_msg, e)
-                try:
+                success[0] = True
+            finally:
+                # Clean up Word application
+                if doc:
+                    try:
+                        doc.Close(SaveChanges=False)
+                    except:
+                        pass
+                if word_app:
+                    try:
+                        word_app.Quit()
+                    except:
+                        pass
+                # Uninitialize COM for this thread
+                pythoncom.CoUninitialize()
+        except Exception as e:
+            exception_occurred[0] = True
+            exception_obj[0] = e
+            # Clean up on error
+            try:
+                if 'doc' in locals() and doc:
                     doc.Close(SaveChanges=False)
-                except:
-                    pass
-    finally:
-        # Always quit Word application
+            except:
+                pass
+            try:
+                if 'word_app' in locals() and word_app:
+                    word_app.Quit()
+            except:
+                pass
+            try:
+                pythoncom.CoUninitialize()
+            except:
+                pass
+    
+    # Start processing document in a thread
+    thread = threading.Thread(target=process_doc)
+    thread.daemon = True
+    thread.start()
+    thread.join(timeout=timeout)
+    
+    if thread.is_alive():
+        # Document processing is taking too long, likely stuck on a dialog
+        error_msg = f"Timeout processing Word file {file_path} (exceeded {timeout}s) - skipping"
+        print(error_msg)
+        log_error(error_msg, None)
+        return False
+    
+    if exception_occurred[0]:
+        error_msg = f"Exception processing Word file {file_path}"
+        print(f"{error_msg}: {exception_obj[0]}")
+        log_error(error_msg, exception_obj[0])
+        return False
+    
+    return success[0]
+
+def cover_id_in_word_file(c_value,digit_strings):
+    # Prepare possible file suffixes
+    suffixes = [".docx",".doc",".rtf"]
+    # Build glob patterns for each suffix
+    file_patterns = [os.path.join(basePath, f"{c_value}{suffix}") for suffix in suffixes]
+    # Find all matching files
+    matching_files = []
+    for pattern in file_patterns:
+        matching_files.extend(glob.glob(pattern))
+
+    if not matching_files:
+        return
+    
+    for file_path in matching_files:
         try:
-            word.Quit()
-        except:
-            pass
+            # Process document with timeout (all work happens in thread)
+            success = process_word_document_with_timeout(file_path, digit_strings, newPath, timeout=30)
+            if not success:
+                # Document couldn't be processed or timed out, skip it
+                error_msg = f"Skipping document {file_path} - could not process or timed out"
+                print(error_msg)
+                log_error(error_msg, None)
+                continue
+        except Exception as e:
+            error_msg = f"Error processing Word file {file_path}"
+            print(f"{error_msg}: {e}")
+            log_error(error_msg, e)
 
 
 def cover_id_in_file(c_value,digit_strings):
@@ -100,7 +180,8 @@ def cover_id_in_file(c_value,digit_strings):
                 with open(file_path, "rb") as f:
                     file_bytes = f.read()
                 file_text = file_bytes.decode("windows-1255", errors="ignore")
-                log_error(f"UnicodeDecodeError while reading {file_path}; some characters were skipped.")
+                error_msg = f"UnicodeDecodeError while reading {file_path}; some characters were skipped."
+                print(error_msg)
             # Replace each digit string with 'xxxxxxxx'
             for digit_str in digit_strings:
                 file_text = file_text.replace(digit_str, 'xxxxxxxx')
