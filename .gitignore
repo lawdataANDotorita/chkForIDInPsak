@@ -1,5 +1,7 @@
 # Exclude everything
 *
+/dist/
+/build/
 
 # But include .py files
 !*.py

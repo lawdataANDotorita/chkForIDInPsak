@@ -7,16 +7,16 @@ import glob
 import win32com.client
 import pythoncom
 import atexit
-import unicodedata
 import threading
-import time
 from datetime import datetime
+from html.parser import HTMLParser
 
 #basePath = r'c:\users\shay\alltmp\tmppsak\\'
 basePath = r'd:\inetpub\wwwroot\upload\psakdin\\'
 
 #newPath = r'c:\users\shay\alltmp\tmppsak2\\'
-newPath = r'd:\inetpub\wwwroot\upload\psakdin_without_id\\'
+#newPath = r'd:\inetpub\wwwroot\upload\psakdin_without_id\\'
+newPath = r'd:\inetpub\wwwroot\upload\psakdin\\'
 
 def process_word_document_with_timeout(file_path, digit_strings, new_path, timeout=30):
     """
@@ -347,80 +347,113 @@ def cleanup_mutex():
         print(f"{error_msg}: {e}")
         log_error(error_msg, e)
 
-def process_psak_data():
 
-    """Main function to process the psak data"""
+class _HTMLTextExtractor(HTMLParser):
+    """Extract plain text from HTML by collecting data between tags."""
+
+    def __init__(self):
+        super().__init__()
+        self.text_parts = []
+
+    def handle_data(self, data):
+        self.text_parts.append(data)
+
+    def get_text(self):
+        return ''.join(self.text_parts)
+
+
+def _extract_text_from_html(html_content):
+    """Extract plain text from HTML string using stdlib only."""
+    extractor = _HTMLTextExtractor()
+    extractor.feed(html_content)
+    return extractor.get_text()
+
+
+def _find_file_in_tmppsak(c, folder):
+    """Return path of first existing file with base name c and extension .htm, .html, or .txt, or None."""
+    for ext in ('.htm', '.html', '.txt'):
+        path = os.path.join(folder, f"{c}{ext}")
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def _read_file_text(file_path):
+    """
+    Read file content. For .htm/.html extract plain text only.
+    Uses windows-1255 encoding with fallback like cover_id_in_file.
+    Returns (text, is_html) or (None, False) on error.
+    """
+    try:
+        try:
+            with open(file_path, "r", encoding="windows-1255") as f:
+                content = f.read()
+        except UnicodeDecodeError:
+            with open(file_path, "rb") as f:
+                file_bytes = f.read()
+            content = file_bytes.decode("windows-1255", errors="ignore")
+            error_msg = f"UnicodeDecodeError while reading {file_path}; some characters were skipped."
+            print(error_msg)
+
+        _, ext = os.path.splitext(file_path)
+        if ext.lower() in ('.htm', '.html'):
+            return _extract_text_from_html(content), True
+        return content, False
+    except Exception as e:
+        error_msg = f"Error reading file {file_path}"
+        print(f"{error_msg}: {e}")
+        log_error(error_msg, e)
+        return None, False
+
+
+def process_psak_data():
+    """Main function to process the psak data from local tmpPsak folder."""
 
     # Check for single instance
     if not check_single_instance():
         print("Another instance is already running!")
         exit()
-    
+
     # Register cleanup function to run on exit
     atexit.register(cleanup_mutex)
 
-    url = "https://www.lawdata.co.il/chkForIDInPsak.asp"
-    
-    # Fetch the JSON data
-    print("Fetching data from URL...")
-
     current_c_file = os.path.join(get_script_dir(), "currentC.txt")
-    currentC=5000000
+    currentC = 5000000
     if os.path.exists(current_c_file):
         with open(current_c_file, "r", encoding="utf-8") as f:
-            currentC = f.read().strip()
-    json_data = fetch_json_data(url,currentC)
-    if not json_data:
-        print("Failed to fetch or parse JSON data")
-        input("Press Enter to exit...")
-        return
-    
-    # Check if 'data' member exists
-    if 'data' not in json_data:
-        print("No 'data' member found in JSON")
-        input("Press Enter to exit...")
-        return
-    
-    data_array = json_data['data']
+            currentC = int(f.read().strip())
 
-    # Process each item in the array
+    print("Processing from local tmpPsak folder...")
+
+    rng=1000
+
     try:
-        results = []
-        for item in data_array:
-            # Check if required fields exist
-            if 'c' not in item or 'tik' not in item or 'text' not in item:
+        for i in range(rng):
+            c = currentC - i
+            file_path = _find_file_in_tmppsak(c, basePath)
+            if not file_path:
                 continue
-            
-            c_value = item['c']
-            tik_value = item['tik']
-            text_value = item['text']
-            
+
+            text_value, _ = _read_file_text(file_path)
+            if text_value is None:
+                continue
+
             text_value = text_value.replace('\r\n', ' ')
-
-            
-            # Find digit strings in the text
             digit_strings = find_digit_strings(text_value)
-            
-            # If we found any 8-10 digit strings, add to results
-            if digit_strings:
-                results.append((c_value, tik_value))
-                print(f"Found match: c={c_value}, tik={tik_value}, digits={digit_strings}")
-                cover_id_in_file(c_value,digit_strings)
-                cover_id_in_word_file(c_value,digit_strings)
 
-        # Write results to file
-        """
-        output_file = os.path.join(get_script_dir(), "filesWithID.txt")
-        with open(output_file, 'a', encoding='utf-8') as f:
-            for c_value_in_results, tik_value_in_results in results:
-                f.write(f"{c_value_in_results}\t{tik_value_in_results}\n")
-        """
-        # Update currentC.txt with the last c value
+            if digit_strings:
+                print(f"Found match: c={c}, digits={digit_strings}")
+                cover_id_in_file(c, digit_strings)
+                cover_id_in_word_file(c, digit_strings)
+
+        # Update currentC.txt for next run (continue from next 100 range)
+        new_currentC = currentC - rng
         with open(current_c_file, "w", encoding="utf-8") as f:
-            f.write(str(c_value))
+            f.write(str(new_currentC))
     except Exception as e:
-        error_msg = "Error processing data array"
+        error_msg = "Error processing psak data"
         log_error(error_msg, e)
 
 if __name__ == "__main__":
     process_psak_data() 
+    input("Press Enter to continue...")
