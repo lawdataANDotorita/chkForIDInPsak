@@ -14,9 +14,7 @@ from html.parser import HTMLParser
 #basePath = r'c:\users\shay\alltmp\tmppsak\\'
 basePath = r'd:\inetpub\wwwroot\upload\psakdin\\'
 
-#newPath = r'c:\users\shay\alltmp\tmppsak2\\'
-#newPath = r'd:\inetpub\wwwroot\upload\psakdin_without_id\\'
-newPath = r'd:\inetpub\wwwroot\upload\psakdin\\'
+newPath = r'd:\inetpub\wwwroot\upload\psakdin_without_id\\'
 
 def process_word_document_with_timeout(file_path, digit_strings, new_path, timeout=30):
     """
@@ -456,4 +454,4 @@ def process_psak_data():
 
 if __name__ == "__main__":
     process_psak_data() 
-    input("Press Enter to continue...")
+    

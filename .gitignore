@@ -1,11 +1,8 @@
-# Exclude everything
+# Ignore everything
 *
-/dist/
-/build/
 
-# But include .py files
+# Keep directories traversable (needed to track .py files in subfolders)
+!**/
+
+# Keep Python sources only
 !*.py
-
-# Include .gitignore itself
-!.gitignore
-
